@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<property name="LOG_FOLDER" value="logs" />
+	<springProperty scope="context" name="ACTIVE_PROFILE"
+		source="spring.profiles.active" />
+
+	<appender name="Console"
+		class="ch.qos.logback.core.ConsoleAppender">
+		<layout class="ch.qos.logback.classic.PatternLayout">
+			<pattern>%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"} %magenta([%thread]) %highlight([%-5level]) %logger{36}.%M - %msg%n</pattern>
+		</layout>
+	</appender>
+
+	<appender name="RollingFile"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${LOG_FOLDER}/${ACTIVE_PROFILE}/spring_skeleton.log</file>
+		<encoder
+			class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+			<pattern>%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"} %magenta([%thread]) %highlight([%-5level]) %logger{36}.%M - %msg%n</pattern>
+		</encoder>
+
+		<rollingPolicy
+			class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<!-- rollover daily and when the file reaches 10 MegaBytes -->
+			<fileNamePattern>${LOG_FOLDER}/archived/${ACTIVE_PROFILE}/spring_skeleton-%d{yyyy-MM-dd}.%i.log
+			</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>10MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+		</rollingPolicy>
+	</appender>
+
+	<!-- LOG everything at INFO level -->
+	<root level="info">
+		<appender-ref ref="RollingFile" />
+		<appender-ref ref="Console" />
+	</root>
+
+	<logger name="com.vm" level="debug" additivity="false">
+		<appender-ref ref="RollingFile" />
+		<appender-ref ref="Console" />
+	</logger>
+
+</configuration>

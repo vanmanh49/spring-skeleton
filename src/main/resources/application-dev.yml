@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/db_name
+    username: postgres
+    password: 123456
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update

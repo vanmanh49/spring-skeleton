@@ -1,0 +1,6 @@
+ERR_01: Something went wrong
+ERR_02: userName or password incorrect
+ERR_03: {0}
+ERR_04: Error occured while authenticating user
+ERR_05: {0}
+ERR_06: {0}
