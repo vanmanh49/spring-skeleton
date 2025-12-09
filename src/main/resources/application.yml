@@ -1,1 +1,44 @@
-spring:  profiles:    active: dev  datasource:    url:    username:     password:  jpa:    show-sql: false    hibernate:      ddl-auto: none      server:  port: 8090  servlet:    context-path: /skeleton  tomcat:    accesslog:      enabled: true      rotate: true      directory: ${spring.profiles.active}      pattern: common      prefix: access_log      suffix: .log    basedir: logs      jwt:  secret-key: jwtSecret_123@@##$$%211  validity: 10800000  
+spring:
+  profiles:
+    active: dev
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+      
+server:
+  port: 8090
+  servlet:
+    context-path: /skeleton
+  tomcat:
+    accesslog:
+      enabled: true
+      rotate: true
+      directory: ${spring.profiles.active}
+      pattern: common
+      prefix: access_log
+      suffix: .log
+    basedir: logs
+      
+jwt:
+  secret-key: ${JWT_SECRET_KEY:jwtSecret_123@@##$$%211_ThisIsADefaultKeyForDevelopmentOnlyPleaseChangeInProduction}
+  validity: ${JWT_VALIDITY:10800000}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+  allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+  allowed-headers: ${CORS_ALLOWED_HEADERS:*}
+
+messages:
+  ERR_01: Something went wrong
+  ERR_02: userName or password incorrect
+  ERR_03: "{0}"
+  ERR_04: Error occured while authenticating user
+  ERR_05: "{0}"
+  ERR_06: "{0}"
+  

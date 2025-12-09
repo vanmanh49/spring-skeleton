@@ -1,8 +1,5 @@
 package com.vm.skeleton.controller;
 
-import javax.validation.Valid;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,12 +11,15 @@ import com.vm.skeleton.dto.JwtResponseDto;
 import com.vm.skeleton.handler.BusinessException;
 import com.vm.skeleton.service.AuthenticationService;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/authenticate")
+@RequiredArgsConstructor
 public class AuthenticationController {
 
-    @Autowired
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
 
     @PostMapping
     public ApiResponse<JwtResponseDto> authenicate(@Valid @RequestBody

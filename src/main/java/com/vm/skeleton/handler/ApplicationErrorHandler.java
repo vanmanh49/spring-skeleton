@@ -3,9 +3,6 @@ package com.vm.skeleton.handler;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.HttpServletResponse;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,11 +16,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.vm.skeleton.common.MessagePropertySourceUtil;
 import com.vm.skeleton.dto.MessageResponseDto;
 
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class ApplicationErrorHandler {
 
-    @Autowired
-    private MessagePropertySourceUtil sourceUtil;
+    private final MessagePropertySourceUtil sourceUtil;
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,12 +20,14 @@ import com.vm.skeleton.entity.Role;
 import com.vm.skeleton.entity.User;
 import com.vm.skeleton.repository.UserDetailRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
 @Primary
+@RequiredArgsConstructor
 public class UserDetailServiceImpl implements UserDetailsService {
 
-    @Autowired
-    private UserDetailRepository userDetailRepository;
+    private final UserDetailRepository userDetailRepository;
 
     @Override
     @Transactional

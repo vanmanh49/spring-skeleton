@@ -1,6 +1,7 @@
 package com.vm.skeleton.common;
 
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Collection;
 import java.util.Date;
 import java.util.function.Function;
@@ -14,9 +15,12 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.impl.DefaultClaims;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class JwtUtil {
 
     @Value("${jwt.secret-key}")
@@ -26,17 +30,30 @@ public class JwtUtil {
     private long jwtValidity;
 
     public static final String ROLE_CLAIM_KEY = "role";
+    private static final int MIN_SECRET_KEY_LENGTH = 64; // Minimum length for HS512
 
-    private static byte[] getByteArrFromString(String text) {
-        return StringUtils.getBytes(text, StandardCharsets.UTF_8);
+    @PostConstruct
+    public void validateSecretKey() {
+        if (StringUtils.isBlank(secretKey)) {
+            throw new IllegalStateException("JWT secret key must not be blank");
+        }
+        if (secretKey.length() < MIN_SECRET_KEY_LENGTH) {
+            log.warn("JWT secret key length ({}) is less than recommended minimum ({}). " +
+                    "Consider using a longer key for better security.", secretKey.length(), MIN_SECRET_KEY_LENGTH);
+        }
+    }
+
+    private Key getSigningKey() {
+        byte[] keyBytes = StringUtils.getBytes(secretKey, StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(UserDetails userDetails) {
-        Claims claims = new DefaultClaims();
+        Claims claims = Jwts.claims();
         claims.put(ROLE_CLAIM_KEY, userDetails.getAuthorities());
         return Jwts.builder().setClaims(claims).setSubject(userDetails.getUsername()).setIssuedAt(new Date())
                 .setIssuer(userDetails.getUsername()).setExpiration(new Date(System.currentTimeMillis() + jwtValidity))
-                .signWith(SignatureAlgorithm.HS512, getByteArrFromString(secretKey)).compact();
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512).compact();
     }
 
     public String getUsernameFromToken(String token) {
@@ -58,7 +75,7 @@ public class JwtUtil {
     }
 
     private Claims getAllClaimsFromToken(String token) {
-        return Jwts.parser().setSigningKey(getByteArrFromString(secretKey)).parseClaimsJws(token).getBody();
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody();
     }
 
     private Boolean isTokenExpired(String token) {

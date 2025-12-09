@@ -3,7 +3,6 @@ package com.vm.skeleton.service.impl;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,17 +20,17 @@ import com.vm.skeleton.dto.JwtResponseDto;
 import com.vm.skeleton.handler.BusinessException;
 import com.vm.skeleton.service.AuthenticationService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private MessagePropertySourceUtil messageSourceUtil;
+    private final MessagePropertySourceUtil messageSourceUtil;
 
     @Override
     public JwtResponseDto authenticate(JwtRequestDto jwtRequestDto) throws BusinessException {
