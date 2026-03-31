@@ -3,71 +3,67 @@ package com.vm.skeleton.handler;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.vm.skeleton.common.ErrorCode;
 import com.vm.skeleton.common.MessagePropertySourceUtil;
-import com.vm.skeleton.dto.MessageResponseDto;
+import com.vm.skeleton.dto.ApiResponse;
 
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
+@Slf4j
 public class ApplicationErrorHandler {
 
     private final MessagePropertySourceUtil sourceUtil;
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public MessageResponseDto handleException(Exception e) {
-        return MessageResponseDto.builder().code("ERR_01").message(sourceUtil.getMessage("ERR_01", null)).build();
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+        log.error("Unhandled exception", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR, sourceUtil.getMessage(ErrorCode.INTERNAL_ERROR.getCode(), null)));
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public MessageResponseDto handleAuthenticationException(AuthenticationException authenticationException) {
-        return MessageResponseDto.builder().code("ERR_02").message(sourceUtil.getMessage("ERR_02", null)).build();
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.INVALID_CREDENTIALS, sourceUtil.getMessage(ErrorCode.INVALID_CREDENTIALS.getCode(), null)));
     }
 
     @ExceptionHandler(BusinessException.class)
-    public MessageResponseDto handleBusinessException(BusinessException businessException,
-            HttpServletResponse response) {
-        response.setStatus(businessException.getStatusCode().value());
-        return MessageResponseDto.builder().code(businessException.getCode())
-                .message(businessException.getMessage()).build();
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
+        return ResponseEntity.status(e.getStatusCode())
+                .body(ApiResponse.error(e.getErrorCode(), e.getMessage()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public MessageResponseDto handleHttpMessageNotReadable(HttpMessageNotReadableException notReadableException) {
-        String errorMessage = notReadableException.getMessage().split(":")[0];
-        return MessageResponseDto.builder().code("ERR_03")
-                .message(sourceUtil.getMessage("ERR_03", new String[] { errorMessage })).build();
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        String errorMessage = e.getMessage() != null ? e.getMessage().split(":")[0] : "Malformed request body";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.MALFORMED_REQUEST, sourceUtil.getMessage(ErrorCode.MALFORMED_REQUEST.getCode(), new String[] { errorMessage })));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public MessageResponseDto handleMethodArgumentNotValid(MethodArgumentNotValidException argumentNotValidException) {
-        String errorMessage = argumentNotValidException.getAllErrors().stream()
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        String errorMessage = e.getAllErrors().stream()
                 .map(ObjectError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
-        return MessageResponseDto.builder().code("ERR_05")
-                .message(sourceUtil.getMessage("ERR_05", new String[] { errorMessage })).build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.VALIDATION_ERROR, sourceUtil.getMessage(ErrorCode.VALIDATION_ERROR.getCode(), new String[] { errorMessage })));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public MessageResponseDto handleAccessDeniedException(AccessDeniedException accessDeniedException) {
-        String errorMessage = accessDeniedException.getMessage();
-        return MessageResponseDto.builder().code("ERR_06")
-                .message(sourceUtil.getMessage("ERR_06", new String[] { errorMessage })).build();
+    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, sourceUtil.getMessage(ErrorCode.ACCESS_DENIED.getCode(), new String[] { e.getMessage() })));
     }
-
 }

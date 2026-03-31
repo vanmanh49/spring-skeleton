@@ -79,7 +79,7 @@ class AuthenticationIntegrationTest {
         requestDto.setUserName("testuser");
         requestDto.setPassword("testpassword");
 
-        MvcResult result = mockMvc.perform(post("/authenticate")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isOk())
@@ -100,7 +100,7 @@ class AuthenticationIntegrationTest {
         requestDto.setUserName("invaliduser");
         requestDto.setPassword("invalidpassword");
 
-        mockMvc.perform(post("/authenticate")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest());
@@ -112,7 +112,7 @@ class AuthenticationIntegrationTest {
         requestDto.setUserName("");
         requestDto.setPassword("testpassword");
 
-        mockMvc.perform(post("/authenticate")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest());
@@ -124,7 +124,7 @@ class AuthenticationIntegrationTest {
         requestDto.setUserName("testuser");
         requestDto.setPassword("short");
 
-        mockMvc.perform(post("/authenticate")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest());

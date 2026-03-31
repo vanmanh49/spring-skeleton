@@ -73,13 +73,13 @@ class ProtectedEndpointIntegrationTest {
 
     @Test
     void testProtectedEndpointWithoutToken() throws Exception {
-        mockMvc.perform(get("/test/admin"))
+        mockMvc.perform(get("/api/v1/test/admin"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void testProtectedEndpointWithInvalidToken() throws Exception {
-        mockMvc.perform(get("/test/admin")
+        mockMvc.perform(get("/api/v1/test/admin")
                         .header("Authorization", "Bearer invalid_token"))
                 .andExpect(status().isUnauthorized());
     }
@@ -91,7 +91,7 @@ class ProtectedEndpointIntegrationTest {
         requestDto.setUserName("adminuser");
         requestDto.setPassword("testpassword");
 
-        String authResponse = mockMvc.perform(post("/authenticate")
+        String authResponse = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isOk())
@@ -106,7 +106,7 @@ class ProtectedEndpointIntegrationTest {
         String token = jwtResponse.getJwt();
 
         // Use token to access protected endpoint
-        mockMvc.perform(get("/test/admin")
+        mockMvc.perform(get("/api/v1/test/admin")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }

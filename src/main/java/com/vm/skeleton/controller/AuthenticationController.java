@@ -10,17 +10,26 @@ import com.vm.skeleton.dto.JwtRequestDto;
 import com.vm.skeleton.dto.JwtResponseDto;
 import com.vm.skeleton.service.AuthenticationService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/authenticate")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Authentication endpoints")
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
 
-    @PostMapping
+    @PostMapping("/login")
+    @Operation(summary = "Authenticate user", description = "Authenticate with username and password to receive a JWT token")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Authentication successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid credentials or validation error")
+    })
     public ApiResponse<JwtResponseDto> authenticate(@Valid @RequestBody JwtRequestDto jwtRequestDto) {
         JwtResponseDto jwtResponseDto = authenticationService.authenticate(jwtRequestDto);
         return ApiResponse.ok(jwtResponseDto);

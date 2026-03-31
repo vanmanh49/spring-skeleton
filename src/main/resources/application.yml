@@ -10,11 +10,14 @@ spring:
     hibernate:
       ddl-auto: none
     open-in-view: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
       
 server:
   port: 8090
   servlet:
     context-path: /skeleton
+  shutdown: graceful
   tomcat:
     accesslog:
       enabled: true
@@ -24,6 +27,15 @@ server:
       prefix: access_log
       suffix: .log
     basedir: logs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
       
 jwt:
   secret-key: ${JWT_SECRET_KEY:jwtSecret_123@@##$$%211_ThisIsADefaultKeyForDevelopmentOnlyPleaseChangeInProduction}

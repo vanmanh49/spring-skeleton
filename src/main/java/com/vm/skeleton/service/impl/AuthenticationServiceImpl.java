@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import com.vm.skeleton.common.ErrorCode;
 import com.vm.skeleton.common.JwtUtil;
 import com.vm.skeleton.common.MessagePropertySourceUtil;
 import com.vm.skeleton.dto.JwtRequestDto;
@@ -21,9 +22,11 @@ import com.vm.skeleton.handler.BusinessException;
 import com.vm.skeleton.service.AuthenticationService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
@@ -42,12 +45,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             Set<String> roles = userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toSet());
             String jwt = jwtUtil.generateToken(userDetails);
+            log.info("User '{}' authenticated successfully", userDetails.getUsername());
             return new JwtResponseDto(userDetails.getUsername(), roles, jwt);
         } catch (AuthenticationException e) {
+            log.warn("Authentication failed for user '{}'", jwtRequestDto.getUserName());
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "ERR_04",
-                    messageSourceUtil.getMessage("ERR_04", null));
+            log.error("Unexpected error during authentication for user '{}'", jwtRequestDto.getUserName(), e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.AUTHENTICATION_FAILURE,
+                    messageSourceUtil.getMessage(ErrorCode.AUTHENTICATION_FAILURE.getCode(), null));
         }
     }
 
