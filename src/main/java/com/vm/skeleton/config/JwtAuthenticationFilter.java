@@ -2,7 +2,6 @@ package com.vm.skeleton.config;
 
 import java.io.IOException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,10 +33,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (!StringUtils.isEmpty(authorizationHeader)
-                && StringUtils.startsWith(authorizationHeader, SecurityConstants.BEARER_PREFIX)) {
+        if (authorizationHeader != null && !authorizationHeader.isEmpty()
+                && authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
             try {
-                String jwt = StringUtils.substring(authorizationHeader, SecurityConstants.BEARER_PREFIX.length()).trim();
+                String jwt = authorizationHeader.substring(SecurityConstants.BEARER_PREFIX.length()).trim();
                 String usernameFromToken = jwtUtil.getUsernameFromToken(jwt);
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(usernameFromToken);

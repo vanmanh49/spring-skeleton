@@ -2,11 +2,9 @@ package com.vm.skeleton.service.impl;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -30,21 +28,19 @@ public class UserDetailServiceImpl implements UserDetailsService {
     private final UserDetailRepository userDetailRepository;
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> userOptional = userDetailRepository.findByUserName(username);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            List<Role> roles = user.getRoles();
-            Set<GrantedAuthority> authorities = Collections.emptySet();
-            if (!ObjectUtils.isEmpty(roles)) {
-                authorities = roles.stream().map(r -> new SimpleGrantedAuthority(r.getRoleCode()))
-                        .collect(Collectors.toSet());
-            }
-            return new org.springframework.security.core.userdetails.User(user.getUserName(), user.getHashedPassword(),
-                    authorities);
-        }
-        throw new UsernameNotFoundException("username not found");
-    }
+        User user = userDetailRepository.findByUserName(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
+        List<Role> roles = user.getRoles();
+        Set<GrantedAuthority> authorities = (roles == null || roles.isEmpty())
+                ? Collections.emptySet()
+                : roles.stream()
+                        .map(r -> new SimpleGrantedAuthority(r.getRoleCode()))
+                        .collect(Collectors.toSet());
+
+        return new org.springframework.security.core.userdetails.User(
+                user.getUserName(), user.getHashedPassword(), authorities);
+    }
 }

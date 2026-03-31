@@ -2,21 +2,17 @@ package com.vm.skeleton.handler;
 
 import org.springframework.http.HttpStatus;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 
-@Data
-@EqualsAndHashCode(callSuper = false)
-@NoArgsConstructor
-@AllArgsConstructor
-public class BusinessException extends Exception {
-    private static final long serialVersionUID = -5665737953667090090L;
+@Getter
+public class BusinessException extends RuntimeException {
 
-    private HttpStatus statusCode;
+    private final HttpStatus statusCode;
+    private final String code;
 
-    private String code;
-
-    private String message;
+    public BusinessException(HttpStatus statusCode, String code, String message) {
+        super(message);
+        this.statusCode = statusCode;
+        this.code = code;
+    }
 }

@@ -1,6 +1,5 @@
 package com.vm.skeleton.handler;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -41,13 +40,13 @@ public class ApplicationErrorHandler {
     public MessageResponseDto handleBusinessException(BusinessException businessException,
             HttpServletResponse response) {
         response.setStatus(businessException.getStatusCode().value());
-        return MessageResponseDto.builder().code(businessException.getCode()).message(businessException.getMessage())
-                .build();
+        return MessageResponseDto.builder().code(businessException.getCode())
+                .message(businessException.getMessage()).build();
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public MessageResponseDto handleBusinessException(HttpMessageNotReadableException notReadableException) {
+    public MessageResponseDto handleHttpMessageNotReadable(HttpMessageNotReadableException notReadableException) {
         String errorMessage = notReadableException.getMessage().split(":")[0];
         return MessageResponseDto.builder().code("ERR_03")
                 .message(sourceUtil.getMessage("ERR_03", new String[] { errorMessage })).build();
@@ -55,9 +54,10 @@ public class ApplicationErrorHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public MessageResponseDto handleBusinessException(MethodArgumentNotValidException argumentNotValidException) {
-        List<ObjectError> allErrors = argumentNotValidException.getAllErrors();
-        String errorMessage = allErrors.stream().map(ObjectError::getDefaultMessage).collect(Collectors.joining(", "));
+    public MessageResponseDto handleMethodArgumentNotValid(MethodArgumentNotValidException argumentNotValidException) {
+        String errorMessage = argumentNotValidException.getAllErrors().stream()
+                .map(ObjectError::getDefaultMessage)
+                .collect(Collectors.joining(", "));
         return MessageResponseDto.builder().code("ERR_05")
                 .message(sourceUtil.getMessage("ERR_05", new String[] { errorMessage })).build();
     }

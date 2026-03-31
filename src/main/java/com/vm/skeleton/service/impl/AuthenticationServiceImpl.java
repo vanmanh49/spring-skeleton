@@ -33,7 +33,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final MessagePropertySourceUtil messageSourceUtil;
 
     @Override
-    public JwtResponseDto authenticate(JwtRequestDto jwtRequestDto) throws BusinessException {
+    public JwtResponseDto authenticate(JwtRequestDto jwtRequestDto) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(jwtRequestDto.getUserName(), jwtRequestDto.getPassword()));

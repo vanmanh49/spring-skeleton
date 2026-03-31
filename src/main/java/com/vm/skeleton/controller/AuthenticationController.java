@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vm.skeleton.dto.ApiResponse;
 import com.vm.skeleton.dto.JwtRequestDto;
 import com.vm.skeleton.dto.JwtResponseDto;
-import com.vm.skeleton.handler.BusinessException;
 import com.vm.skeleton.service.AuthenticationService;
 
 import jakarta.validation.Valid;
@@ -22,9 +21,8 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
     @PostMapping
-    public ApiResponse<JwtResponseDto> authenicate(@Valid @RequestBody
-    JwtRequestDto jwtRequestDto) throws BusinessException {
+    public ApiResponse<JwtResponseDto> authenticate(@Valid @RequestBody JwtRequestDto jwtRequestDto) {
         JwtResponseDto jwtResponseDto = authenticationService.authenticate(jwtRequestDto);
-        return ApiResponse.<JwtResponseDto> builder().data(jwtResponseDto).build();
+        return ApiResponse.ok(jwtResponseDto);
     }
 }
