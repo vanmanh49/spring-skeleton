@@ -9,7 +9,7 @@ import com.vm.skeleton.repository.UserDetailRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -78,7 +78,7 @@ class RoleBasedAccessIntegrationTest {
         request.setUserName(username);
         request.setPassword(password);
 
-        String response = mockMvc.perform(post("/api/v1/auth/login")
+        String response = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -91,55 +91,55 @@ class RoleBasedAccessIntegrationTest {
 
     @Test
     void adminEndpoint_withAdminToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
     }
 
     @Test
     void adminEndpoint_withEditorToken_shouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void editorEndpoint_withEditorToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/v1/test/editor")
+        mockMvc.perform(get("/api/test/editor")
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isOk());
     }
 
     @Test
     void editorEndpoint_withAdminToken_shouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void authenticatedUserEndpoint_withAdminToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/v1/test/authenticated-user")
+        mockMvc.perform(get("/api/test/authenticated-user")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
     }
 
     @Test
     void authenticatedUserEndpoint_withEditorToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/v1/test/authenticated-user")
+        mockMvc.perform(get("/api/test/authenticated-user")
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isOk());
     }
 
     @Test
     void protectedEndpoint_withoutToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin"))
+        mockMvc.perform(get("/api/test/admin"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void protectedEndpoint_withMalformedToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer not.a.valid.jwt"))
                 .andExpect(status().isUnauthorized());
     }
@@ -150,7 +150,7 @@ class RoleBasedAccessIntegrationTest {
         request.setUserName("adminuser");
         request.setPassword("testpassword");
 
-        mockMvc.perform(post("/api/v1/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -166,7 +166,7 @@ class RoleBasedAccessIntegrationTest {
         request.setUserName("adminuser");
         request.setPassword("wrongpassword");
 
-        mockMvc.perform(post("/api/v1/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())

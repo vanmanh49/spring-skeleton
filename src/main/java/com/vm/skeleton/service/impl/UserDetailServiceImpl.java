@@ -19,6 +19,7 @@ import com.vm.skeleton.entity.User;
 import com.vm.skeleton.repository.UserDetailRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.resilience.annotation.Retryable;
 
 @Service
 @Primary
@@ -29,6 +30,7 @@ public class UserDetailServiceImpl implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
+    @Retryable(maxRetries = 2, delay = 500)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userDetailRepository.findByUserName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));

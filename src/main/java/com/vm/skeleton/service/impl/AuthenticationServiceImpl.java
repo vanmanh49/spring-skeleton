@@ -23,6 +23,7 @@ import com.vm.skeleton.service.AuthenticationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.resilience.annotation.ConcurrencyLimit;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final MessagePropertySourceUtil messageSourceUtil;
 
     @Override
+    @ConcurrencyLimit(20)
     public JwtResponseDto authenticate(JwtRequestDto jwtRequestDto) {
         try {
             Authentication authentication = authenticationManager.authenticate(

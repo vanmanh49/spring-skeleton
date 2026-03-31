@@ -9,7 +9,7 @@ import com.vm.skeleton.repository.UserDetailRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -73,13 +73,13 @@ class ProtectedEndpointIntegrationTest {
 
     @Test
     void testProtectedEndpointWithoutToken() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin"))
+        mockMvc.perform(get("/api/test/admin"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void testProtectedEndpointWithInvalidToken() throws Exception {
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer invalid_token"))
                 .andExpect(status().isUnauthorized());
     }
@@ -91,7 +91,7 @@ class ProtectedEndpointIntegrationTest {
         requestDto.setUserName("adminuser");
         requestDto.setPassword("testpassword");
 
-        String authResponse = mockMvc.perform(post("/api/v1/auth/login")
+        String authResponse = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isOk())
@@ -106,7 +106,7 @@ class ProtectedEndpointIntegrationTest {
         String token = jwtResponse.getJwt();
 
         // Use token to access protected endpoint
-        mockMvc.perform(get("/api/v1/test/admin")
+        mockMvc.perform(get("/api/test/admin")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }

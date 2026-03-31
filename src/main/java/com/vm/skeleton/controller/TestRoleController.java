@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/api/v1/test")
+@RequestMapping(path = "/api/test", version = "1+")
 @Tag(name = "Test", description = "Role-based access test endpoints")
 @SecurityRequirement(name = "bearer-jwt")
 public class TestRoleController {

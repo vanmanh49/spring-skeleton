@@ -8,6 +8,9 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.ObjectError;
+import org.springframework.web.accept.InvalidApiVersionException;
+import org.springframework.web.accept.MissingApiVersionException;
+import org.springframework.web.accept.NotAcceptableApiVersionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -65,5 +68,11 @@ public class ApplicationErrorHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, sourceUtil.getMessage(ErrorCode.ACCESS_DENIED.getCode(), new String[] { e.getMessage() })));
+    }
+
+    @ExceptionHandler({ InvalidApiVersionException.class, MissingApiVersionException.class, NotAcceptableApiVersionException.class })
+    public ResponseEntity<ApiResponse<Void>> handleApiVersionException(Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.MALFORMED_REQUEST, e.getMessage()));
     }
 }

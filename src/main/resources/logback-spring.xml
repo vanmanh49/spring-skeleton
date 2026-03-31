@@ -14,9 +14,8 @@
 	<appender name="RollingFile"
 		class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>${LOG_FOLDER}/${ACTIVE_PROFILE}/spring_skeleton.log</file>
-		<encoder
-			class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-			<pattern>%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX"} %magenta([%thread]) %highlight([%-5level]) %logger{36}.%M - %msg%n</pattern>
+		<encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+			<format>ecs</format>
 		</encoder>
 
 		<rollingPolicy

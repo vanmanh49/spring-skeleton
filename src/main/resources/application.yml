@@ -1,6 +1,9 @@
 spring:
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: ${DB_URL:}
     username: ${DB_USERNAME:}
@@ -10,6 +13,8 @@ spring:
     hibernate:
       ddl-auto: none
     open-in-view: false
+  jackson:
+    use-jackson2-defaults: true
   lifecycle:
     timeout-per-shutdown-phase: 30s
       
@@ -36,6 +41,18 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
+logging:
+  structured:
+    format:
+      file: ecs
       
 jwt:
   secret-key: ${JWT_SECRET_KEY:jwtSecret_123@@##$$%211_ThisIsADefaultKeyForDevelopmentOnlyPleaseChangeInProduction}
