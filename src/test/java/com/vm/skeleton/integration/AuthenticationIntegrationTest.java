@@ -1,133 +1,91 @@
 package com.vm.skeleton.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vm.skeleton.dto.ApiResponse;
-import com.vm.skeleton.dto.JwtRequestDto;
-import com.vm.skeleton.dto.JwtResponseDto;
-import com.vm.skeleton.entity.Role;
-import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-class AuthenticationIntegrationTest {
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
-    @Autowired
-    private UserDetailRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @BeforeEach
-    void setUp() {
-        // Clear and initialize test data
-        userRepository.deleteAll();
-        
-        // Create test user
-        User testUser = new User();
-        testUser.setUserName("testuser");
-        testUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        
-        Role editorRole = new Role();
-        editorRole.setRoleCode("EDITOR");
-        editorRole.setUser(testUser);
-        testUser.setRoles(List.of(editorRole));
-        
-        userRepository.save(testUser);
-
-        // Create admin user
-        User adminUser = new User();
-        adminUser.setUserName("adminuser");
-        adminUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        
-        Role adminRole = new Role();
-        adminRole.setRoleCode("ADMINISTRATOR");
-        adminRole.setUser(adminUser);
-        adminUser.setRoles(List.of(adminRole));
-        
-        userRepository.save(adminUser);
-    }
+class AuthenticationIntegrationTest extends AbstractIntegrationTest {
 
     @Test
-    void testAuthenticateWithValidCredentials() throws Exception {
-        JwtRequestDto requestDto = new JwtRequestDto();
-        requestDto.setUserName("testuser");
-        requestDto.setPassword("testpassword");
-
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+    void login_withValidCredentials_returnsToken() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
+                        .content(loginJson(ADMIN, PASSWORD)))
                 .andExpect(status().isOk())
-                .andReturn();
-
-        String responseBody = result.getResponse().getContentAsString();
-        ApiResponse<JwtResponseDto> response = objectMapper.readValue(responseBody,
-                objectMapper.getTypeFactory().constructParametricType(ApiResponse.class, JwtResponseDto.class));
-
-        assertNotNull(response.getData());
-        assertNotNull(response.getData().getJwt());
-        assertNotNull(response.getData().getUserName());
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userName").value(ADMIN))
+                .andExpect(jsonPath("$.data.roles", containsInAnyOrder("ADMINISTRATOR")))
+                .andExpect(jsonPath("$.data.jwt").isNotEmpty())
+                .andExpect(jsonPath("$.data.expiresAt").isNotEmpty());
     }
 
     @Test
-    void testAuthenticateWithInvalidCredentials() throws Exception {
-        JwtRequestDto requestDto = new JwtRequestDto();
-        requestDto.setUserName("invaliduser");
-        requestDto.setPassword("invalidpassword");
-
+    void login_withWrongPassword_returns401Problem() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isBadRequest());
+                        .content(loginJson(ADMIN, "wrongpassword")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.errorCode").value("ERR_02"))
+                .andExpect(jsonPath("$.detail").value("Username or password is incorrect"));
     }
 
     @Test
-    void testAuthenticateWithEmptyUsername() throws Exception {
-        JwtRequestDto requestDto = new JwtRequestDto();
-        requestDto.setUserName("");
-        requestDto.setPassword("testpassword");
-
+    void login_withUnknownUser_returns401Problem() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isBadRequest());
+                        .content(loginJson("invaliduser", "invalidpassword")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("ERR_02"));
     }
 
     @Test
-    void testAuthenticateWithShortPassword() throws Exception {
-        JwtRequestDto requestDto = new JwtRequestDto();
-        requestDto.setUserName("testuser");
-        requestDto.setPassword("short");
-
+    void login_withBlankUsername_returns400ValidationProblem() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isBadRequest());
+                        .content(loginJson("", PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("ERR_05"))
+                .andExpect(jsonPath("$.errors.userName").isNotEmpty());
+    }
+
+    @Test
+    void login_withShortPassword_returns400ValidationProblem() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson(ADMIN, "short")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("ERR_05"))
+                .andExpect(jsonPath("$.errors.password").value("password must be between 6 and 100 characters"));
+    }
+
+    @Test
+    void login_withMalformedBody_returns400Problem() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("ERR_03"));
+    }
+
+    @Test
+    void login_withUnsupportedApiVersion_returns400Problem() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .header("API-Version", "2")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson(ADMIN, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("ERR_03"));
     }
 }
-

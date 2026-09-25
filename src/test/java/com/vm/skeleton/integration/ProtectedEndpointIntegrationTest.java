@@ -1,120 +1,120 @@
 package com.vm.skeleton.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vm.skeleton.dto.JwtRequestDto;
-import com.vm.skeleton.dto.JwtResponseDto;
-import com.vm.skeleton.entity.Role;
-import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-class ProtectedEndpointIntegrationTest {
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.List;
+
+import javax.crypto.spec.SecretKeySpec;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+
+import com.vm.skeleton.common.SecurityConstants;
+import com.vm.skeleton.config.JwtProperties;
+
+class ProtectedEndpointIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
-    private UserDetailRepository userRepository;
+    private JwtEncoder jwtEncoder;
 
     @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @BeforeEach
-    void setUp() {
-        // Clear and initialize test data
-        userRepository.deleteAll();
-        
-        // Create test user
-        User testUser = new User();
-        testUser.setUserName("testuser");
-        testUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        
-        Role editorRole = new Role();
-        editorRole.setRoleCode("EDITOR");
-        editorRole.setUser(testUser);
-        testUser.setRoles(List.of(editorRole));
-        
-        userRepository.save(testUser);
-
-        // Create admin user
-        User adminUser = new User();
-        adminUser.setUserName("adminuser");
-        adminUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        
-        Role adminRole = new Role();
-        adminRole.setRoleCode("ADMINISTRATOR");
-        adminRole.setUser(adminUser);
-        adminUser.setRoles(List.of(adminRole));
-        
-        userRepository.save(adminUser);
-    }
+    private JwtProperties jwtProperties;
 
     @Test
-    void testProtectedEndpointWithoutToken() throws Exception {
+    void withoutToken_returns401Problem() throws Exception {
         mockMvc.perform(get("/api/test/admin"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+                .andExpect(jsonPath("$.errorCode").value("ERR_04"));
+    }
+
+    @Test
+    void withMalformedToken_returns401InvalidToken() throws Exception {
+        mockMvc.perform(get("/api/test/admin")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer not.a.valid.jwt"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"invalid_token\""))
+                .andExpect(jsonPath("$.errorCode").value("ERR_04"));
+    }
+
+    @Test
+    void withExpiredToken_returns401() throws Exception {
+        Instant issuedAt = Instant.now().minusSeconds(7200);
+        String token = encode(jwtEncoder, jwtProperties.issuer(), issuedAt, issuedAt.plusSeconds(3600));
+
+        mockMvc.perform(get("/api/test/admin")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void testProtectedEndpointWithInvalidToken() throws Exception {
+    void withTokenFromOtherIssuer_returns401() throws Exception {
+        String token = encode(jwtEncoder, "someone-else", Instant.now(), Instant.now().plusSeconds(600));
+
         mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer invalid_token"))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void testProtectedEndpointWithValidToken() throws Exception {
-        // First authenticate to get a token
-        JwtRequestDto requestDto = new JwtRequestDto();
-        requestDto.setUserName("adminuser");
-        requestDto.setPassword("testpassword");
+    void withTokenSignedByOtherKey_returns401() throws Exception {
+        JwtEncoder foreignEncoder = NimbusJwtEncoder
+                .withSecretKey(new SecretKeySpec(
+                        "another-secret-key-that-is-also-at-least-sixty-four-bytes-long-for-hs512".getBytes(
+                                StandardCharsets.UTF_8),
+                        "HmacSHA512"))
+                .algorithm(MacAlgorithm.HS512)
+                .build();
+        String token = encode(foreignEncoder, jwtProperties.issuer(), Instant.now(), Instant.now().plusSeconds(600));
 
-        String authResponse = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        JwtResponseDto jwtResponse = objectMapper.readValue(
-                objectMapper.readTree(authResponse).get("data").toString(),
-                JwtResponseDto.class);
-
-        String token = jwtResponse.getJwt();
-
-        // Use token to access protected endpoint
         mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void withValidToken_returns200() throws Exception {
+        mockMvc.perform(get("/api/test/admin")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + obtainToken(ADMIN)))
                 .andExpect(status().isOk());
     }
 
     @Test
-    void testSwaggerEndpointsArePublic() throws Exception {
+    void swaggerEndpoints_arePublic() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk());
     }
-}
 
+    @Test
+    void healthEndpoint_isPublic() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+    }
+
+    private static String encode(JwtEncoder encoder, String issuer, Instant issuedAt, Instant expiresAt) {
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .subject(ADMIN)
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .claim(SecurityConstants.ROLES_CLAIM, List.of("ADMINISTRATOR"))
+                .build();
+        return encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS512).build(), claims))
+                .getTokenValue();
+    }
+}

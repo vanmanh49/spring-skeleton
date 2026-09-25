@@ -1,177 +1,61 @@
 package com.vm.skeleton.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vm.skeleton.dto.JwtRequestDto;
-import com.vm.skeleton.dto.JwtResponseDto;
-import com.vm.skeleton.entity.Role;
-import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-class RoleBasedAccessIntegrationTest {
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
-    @Autowired
-    private UserDetailRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class RoleBasedAccessIntegrationTest extends AbstractIntegrationTest {
 
     private String adminToken;
     private String editorToken;
 
     @BeforeEach
-    void setUp() throws Exception {
-        userRepository.deleteAll();
-
-        // Create admin user
-        User adminUser = new User();
-        adminUser.setUserName("adminuser");
-        adminUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        Role adminRole = new Role();
-        adminRole.setRoleCode("ADMINISTRATOR");
-        adminRole.setUser(adminUser);
-        adminUser.setRoles(List.of(adminRole));
-        userRepository.save(adminUser);
-
-        // Create editor user
-        User editorUser = new User();
-        editorUser.setUserName("editoruser");
-        editorUser.setHashedPassword(passwordEncoder.encode("testpassword"));
-        Role editorRole = new Role();
-        editorRole.setRoleCode("EDITOR");
-        editorRole.setUser(editorUser);
-        editorUser.setRoles(List.of(editorRole));
-        userRepository.save(editorUser);
-
-        adminToken = obtainToken("adminuser", "testpassword");
-        editorToken = obtainToken("editoruser", "testpassword");
-    }
-
-    private String obtainToken(String username, String password) throws Exception {
-        JwtRequestDto request = new JwtRequestDto();
-        request.setUserName(username);
-        request.setPassword(password);
-
-        String response = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        JwtResponseDto jwt = objectMapper.readValue(
-                objectMapper.readTree(response).get("data").toString(), JwtResponseDto.class);
-        return jwt.getJwt();
+    void obtainTokens() throws Exception {
+        adminToken = obtainToken(ADMIN);
+        editorToken = obtainToken(EDITOR);
     }
 
     @Test
-    void adminEndpoint_withAdminToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk());
+    void adminEndpoint_withAdminToken_returns200() throws Exception {
+        call("/api/test/admin", adminToken).andExpect(status().isOk());
     }
 
     @Test
-    void adminEndpoint_withEditorToken_shouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer " + editorToken))
-                .andExpect(status().isForbidden());
+    void adminEndpoint_withEditorToken_returns403Problem() throws Exception {
+        call("/api/test/admin", editorToken)
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("ERR_06"));
     }
 
     @Test
-    void editorEndpoint_withEditorToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/test/editor")
-                        .header("Authorization", "Bearer " + editorToken))
-                .andExpect(status().isOk());
+    void editorEndpoint_withEditorToken_returns200() throws Exception {
+        call("/api/test/editor", editorToken).andExpect(status().isOk());
     }
 
     @Test
-    void editorEndpoint_withAdminToken_shouldReturn403() throws Exception {
-        mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer " + editorToken))
-                .andExpect(status().isForbidden());
+    void editorEndpoint_withAdminToken_returns403() throws Exception {
+        call("/api/test/editor", adminToken).andExpect(status().isForbidden());
     }
 
     @Test
-    void authenticatedUserEndpoint_withAdminToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/test/authenticated-user")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk());
+    void authenticatedUserEndpoint_withAdminToken_returns200() throws Exception {
+        call("/api/test/authenticated-user", adminToken).andExpect(status().isOk());
     }
 
     @Test
-    void authenticatedUserEndpoint_withEditorToken_shouldReturn200() throws Exception {
-        mockMvc.perform(get("/api/test/authenticated-user")
-                        .header("Authorization", "Bearer " + editorToken))
-                .andExpect(status().isOk());
+    void authenticatedUserEndpoint_withEditorToken_returns200() throws Exception {
+        call("/api/test/authenticated-user", editorToken).andExpect(status().isOk());
     }
 
-    @Test
-    void protectedEndpoint_withoutToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get("/api/test/admin"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void protectedEndpoint_withMalformedToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get("/api/test/admin")
-                        .header("Authorization", "Bearer not.a.valid.jwt"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void loginResponse_shouldContainExpectedStructure() throws Exception {
-        JwtRequestDto request = new JwtRequestDto();
-        request.setUserName("adminuser");
-        request.setPassword("testpassword");
-
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.jwt").isNotEmpty())
-                .andExpect(jsonPath("$.data.userName").value("adminuser"))
-                .andExpect(jsonPath("$.data.roles").isArray());
-    }
-
-    @Test
-    void loginWithInvalidCredentials_shouldReturnErrorStructure() throws Exception {
-        JwtRequestDto request = new JwtRequestDto();
-        request.setUserName("adminuser");
-        request.setPassword("wrongpassword");
-
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").isNotEmpty())
-                .andExpect(jsonPath("$.message").isNotEmpty());
+    private ResultActions call(String path, String token) throws Exception {
+        return mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
     }
 }

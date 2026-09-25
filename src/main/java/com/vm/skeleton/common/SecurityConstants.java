@@ -11,6 +11,6 @@ public final class SecurityConstants {
 
     public static final String[] ALLOWED_URLS = { API_BASE + "/auth/**", "/actuator/health", "/actuator/health/**" };
 
-    public static final String BEARER_PREFIX = "Bearer";
+    /** JWT claim holding the user's role codes. */
+    public static final String ROLES_CLAIM = "roles";
 }
-
