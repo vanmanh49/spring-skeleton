@@ -1,8 +1,5 @@
+# DB_URL, DB_USERNAME and DB_PASSWORD must be provided by the environment (see application.yml).
 spring:
-  datasource:
-    url: ${DB_URL:}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
   docker:
     compose:
       enabled: false

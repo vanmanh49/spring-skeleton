@@ -28,7 +28,8 @@ No linter/formatter plugin is configured.
 Layered: `controller` → `service` (interfaces; `JwtTokenService` is concrete) / `service.impl` → `repository` (Spring Data JPA) → `entity`. Supporting packages: `config` (security, JWT encoder/decoder, typed properties, OpenAPI), `handler` (ProblemDetail error handling), `common` (error codes, security constants), `dto` (records). Every package has a `package-info.java` marked `@NullMarked` (JSpecify) — add one to new packages.
 
 **Authentication flow**
-- `POST /api/auth/login` → `AuthenticationServiceImpl` authenticates through the `AuthenticationManager` (built by Spring Security from the `UserDetailServiceImpl` + BCrypt `PasswordEncoder` beans), then `JwtTokenService` issues an HS512 JWT (`sub`, `iss`, `iat`, `exp`, `roles`).
+- `POST /api/auth/login` → `AuthenticationServiceImpl` authenticates through the `AuthenticationManager` (built by Spring Security from the `UserDetailServiceImpl` + `PasswordEncoder` beans), then `JwtTokenService` issues an HS512 JWT (`sub`, `iss`, `iat`, `exp`, `roles`).
+- `PasswordEncoder` is a `DelegatingPasswordEncoder`: new hashes are `{bcrypt}…`, unprefixed hashes still match as BCrypt. `UserDetailServiceImpl` also implements `UserDetailsPasswordService`, so Spring Security re-encodes an outdated hash after a successful login.
 - Roles are taken from the `UserDetails` principal, not `Authentication.getAuthorities()` — Spring Security 7 adds factor authorities like `FACTOR_PASSWORD` there.
 - Protected requests use Spring Security's OAuth2 resource server (`JwtConfig`: `NimbusJwtDecoder` with issuer validation). Authorities come from the `roles` claim (no DB lookup per request), mapped without a prefix. `GrantedAuthorityDefaults("")` makes `hasRole('ADMINISTRATOR')` match that role code.
 - `JwtProperties` / `CorsProperties` are `@ConfigurationProperties` records (`jwt.*`, `cors.*`); `JwtProperties` validates the key length at startup.
@@ -39,11 +40,11 @@ Layered: `controller` → `service` (interfaces; `JwtTokenService` is concrete) 
 - Security's 401/403 responses from the filter chain are routed to the same handler through the `handlerExceptionResolver` bean (see `WebSecurityConfig`), so they are ProblemDetails too.
 - `ErrorCode` holds the code, HTTP status and message key (`error.ERR_xx` in `src/main/resources/messages.properties`, resolved via Spring's `MessageSource`). To add an error, add an enum constant and a message.
 - For domain errors throw `BusinessException(ErrorCode, args...)` (an `ErrorResponseException`).
-- Successful responses are wrapped in `ApiResponse<T>` (`{data, success}`).
+- Successful responses return the DTO directly (no envelope); document error responses as `application/problem+json` with a `ProblemDetail` schema.
 
 **API versioning** — configured with `spring.mvc.apiversion.*` in `application.yml` (header `API-Version`, default and supported `1`). Controllers declare `@RequestMapping(path = "/api/...", version = "1+")`. Add new versions to `spring.mvc.apiversion.supported`.
 
-**Persistence** — the schema is owned by Flyway (`src/main/resources/db/migration`, SQL must run on PostgreSQL and H2). Hibernate runs `ddl-auto: validate`, so entity changes need a new migration. `@EnableJpaAuditing` fills `User.createdAt`/`updatedAt`; `User` has `@Version`.
+**Persistence** — the schema is owned by Flyway (`src/main/resources/db/migration`, SQL must run on PostgreSQL and H2). Hibernate runs `ddl-auto: validate`, so entity changes need a new migration. `@EnableJpaAuditing` fills `User.createdAt`/`updatedAt`; `User` has `@Version`. Roles are reference data (`roles.code`, seeded by `V2__normalize_roles.sql`) linked to users through the `user_roles` join table (`User.roles` is a `@ManyToMany Set<Role>`; `Role` equality is by `code`). Entities have protected no-arg constructors and expose intent methods (`addRole`, `changePassword`) instead of setters. Repositories: `UserRepository` (`findByUserName` fetches roles via `@EntityGraph`), `RoleRepository` (`findByCode`).
 
 **Other cross-cutting details**
 - `@EnableResilientMethods(proxyTargetClass = true)` enables `@Retryable` / `@ConcurrencyLimit`. Class proxies are required because the annotation is looked up on the invoked method, which for an interface proxy is the interface method. `UserDetailServiceImpl` retries only `TransientDataAccessException`.
@@ -53,5 +54,6 @@ Layered: `controller` → `service` (interfaces; `JwtTokenService` is concrete) 
 
 ## Tests
 
+- `migration/V2NormalizeRolesMigrationTest` runs Flyway to V1 on a separate H2 database, inserts legacy rows, migrates to latest and checks the data. Add a similar test for any data-moving migration.
 - Unit tests: Mockito (`service/impl/*Test`), a real encoder/decoder round trip (`JwtTokenServiceTest`), and a small Spring context that checks retry behavior (`UserDetailServiceImplRetryTest`).
-- Integration tests extend `integration/AbstractIntegrationTest` (`@SpringBootTest` + MockMvc + `test` profile + `@Transactional`). It seeds `adminuser`/`editoruser` and provides `obtainToken(...)`. `RestTestClientIntegrationTest` adds `@AutoConfigureRestTestClient`.
+- Integration tests extend `integration/AbstractIntegrationTest` (`@SpringBootTest` + MockMvc + `test` profile + `@Transactional`). It seeds `adminuser`/`editoruser` (looking roles up via `RoleRepository`) and provides `obtainToken(...)`. `RestTestClientIntegrationTest` adds `@AutoConfigureRestTestClient`.

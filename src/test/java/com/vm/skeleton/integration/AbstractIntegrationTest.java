@@ -3,8 +3,6 @@ package com.vm.skeleton.integration;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,14 +14,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vm.skeleton.dto.LoginRequest;
-import com.vm.skeleton.entity.Role;
 import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
+import com.vm.skeleton.repository.RoleRepository;
+import com.vm.skeleton.repository.UserRepository;
 
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Boots the full application against in-memory H2 (schema from Flyway) and seeds one user per role.
+ * Boots the full application against in-memory H2 (schema and roles from Flyway) and seeds one user per role.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,7 +40,10 @@ abstract class AbstractIntegrationTest {
     protected JsonMapper jsonMapper;
 
     @Autowired
-    private UserDetailRepository userRepository;
+    protected UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -64,17 +65,12 @@ abstract class AbstractIntegrationTest {
                         .content(loginJson(userName, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        return jsonMapper.readTree(response).path("data").path("jwt").asString();
+        return jsonMapper.readTree(response).path("jwt").asString();
     }
 
+    /** Roles are reference data seeded by the Flyway migrations. */
     private User user(String userName, String roleCode) {
-        User user = new User();
-        user.setUserName(userName);
-        user.setHashedPassword(passwordEncoder.encode(PASSWORD));
-        Role role = new Role();
-        role.setRoleCode(roleCode);
-        role.setUser(user);
-        user.setRoles(List.of(role));
-        return user;
+        return new User(userName, passwordEncoder.encode(PASSWORD))
+                .addRole(roleRepository.findByCode(roleCode).orElseThrow());
     }
 }

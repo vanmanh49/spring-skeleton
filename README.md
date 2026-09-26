@@ -5,7 +5,7 @@
 Included features
 1. Stateless JWT authentication with Spring Security's OAuth2 resource server (HS512 tokens issued by `POST /api/auth/login`)
 2. Role-based method security (`@PreAuthorize`) driven by a `roles` token claim
-3. JPA with PostgreSQL + Flyway migrations
+3. JPA with PostgreSQL + Flyway migrations (`users`, `roles` reference data, `user_roles` join table)
 4. RFC 9457 `ProblemDetail` error responses with application error codes
 5. Header-based API versioning (`API-Version`, Spring Framework 7)
 6. OpenAPI docs via springdoc-openapi (Swagger UI)
@@ -34,6 +34,14 @@ Profiles
 - `dev` (default): SQL logging, Docker Compose, Flyway baselines an existing schema.
 - `prod`: Docker Compose disabled; DB credentials must come from the environment.
 - Hibernate runs with `ddl-auto: validate` everywhere — schema changes go in `src/main/resources/db/migration`.
+
+Login
+
+`POST /skeleton/api/auth/login` with `{"userName": "...", "password": "..."}` returns the token directly:
+```json
+{ "userName": "adminuser", "roles": ["ADMINISTRATOR"], "jwt": "eyJ...", "expiresAt": "2026-01-01T03:00:00Z" }
+```
+Send it as `Authorization: Bearer <jwt>`. Passwords are stored as `{bcrypt}` hashes; legacy BCrypt hashes without the prefix still work and are re-encoded on the next successful login.
 
 Error format
 

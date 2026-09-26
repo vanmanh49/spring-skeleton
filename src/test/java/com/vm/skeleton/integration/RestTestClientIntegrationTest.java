@@ -24,8 +24,8 @@ class RestTestClientIntegrationTest extends AbstractIntegrationTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.jwt").isNotEmpty()
-                .jsonPath("$.data.userName").isEqualTo(ADMIN);
+                .jsonPath("$.jwt").isNotEmpty()
+                .jsonPath("$.userName").isEqualTo(ADMIN);
     }
 
     @Test

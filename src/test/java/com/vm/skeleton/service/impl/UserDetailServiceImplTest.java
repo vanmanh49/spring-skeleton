@@ -3,7 +3,6 @@ package com.vm.skeleton.service.impl;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -16,29 +15,22 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import com.vm.skeleton.entity.Role;
 import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
+import com.vm.skeleton.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class UserDetailServiceImplTest {
 
     @Mock
-    private UserDetailRepository userDetailRepository;
+    private UserRepository userRepository;
 
     @InjectMocks
     private UserDetailServiceImpl userDetailService;
 
     @Test
     void loadUserByUsername_withExistingUser_shouldReturnUserDetails() {
-        User user = new User();
-        user.setUserName("testuser");
-        user.setHashedPassword("hashedpwd");
+        User user = new User("testuser", "hashedpwd").addRole(new Role("EDITOR"));
 
-        Role role = new Role();
-        role.setRoleCode("EDITOR");
-        role.setUser(user);
-        user.setRoles(List.of(role));
-
-        when(userDetailRepository.findByUserName("testuser")).thenReturn(Optional.of(user));
+        when(userRepository.findByUserName("testuser")).thenReturn(Optional.of(user));
 
         UserDetails result = userDetailService.loadUserByUsername("testuser");
 
@@ -51,7 +43,7 @@ class UserDetailServiceImplTest {
 
     @Test
     void loadUserByUsername_withNonExistingUser_shouldThrowException() {
-        when(userDetailRepository.findByUserName("unknown")).thenReturn(Optional.empty());
+        when(userRepository.findByUserName("unknown")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class,
                 () -> userDetailService.loadUserByUsername("unknown"));
@@ -59,12 +51,9 @@ class UserDetailServiceImplTest {
 
     @Test
     void loadUserByUsername_withNoRoles_shouldReturnEmptyAuthorities() {
-        User user = new User();
-        user.setUserName("noroleuser");
-        user.setHashedPassword("hashedpwd");
-        user.setRoles(null);
+        User user = new User("noroleuser", "hashedpwd");
 
-        when(userDetailRepository.findByUserName("noroleuser")).thenReturn(Optional.of(user));
+        when(userRepository.findByUserName("noroleuser")).thenReturn(Optional.of(user));
 
         UserDetails result = userDetailService.loadUserByUsername("noroleuser");
 
@@ -73,16 +62,15 @@ class UserDetailServiceImplTest {
     }
 
     @Test
-    void loadUserByUsername_withEmptyRoles_shouldReturnEmptyAuthorities() {
-        User user = new User();
-        user.setUserName("emptyroles");
-        user.setHashedPassword("hashedpwd");
-        user.setRoles(List.of());
+    void updatePassword_storesNewHashAndReturnsUpdatedUserDetails() {
+        User user = new User("testuser", "oldhash").addRole(new Role("EDITOR"));
+        when(userRepository.findByUserName("testuser")).thenReturn(Optional.of(user));
 
-        when(userDetailRepository.findByUserName("emptyroles")).thenReturn(Optional.of(user));
+        UserDetails result = userDetailService.updatePassword(
+                userDetailService.loadUserByUsername("testuser"), "{bcrypt}newhash");
 
-        UserDetails result = userDetailService.loadUserByUsername("emptyroles");
-
-        assertTrue(result.getAuthorities().isEmpty());
+        assertEquals("{bcrypt}newhash", user.getHashedPassword());
+        assertEquals("{bcrypt}newhash", result.getPassword());
+        assertEquals(1, result.getAuthorities().size());
     }
 }

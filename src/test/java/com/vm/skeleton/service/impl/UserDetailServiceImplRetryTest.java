@@ -6,7 +6,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.vm.skeleton.entity.Role;
 import com.vm.skeleton.entity.User;
-import com.vm.skeleton.repository.UserDetailRepository;
+import com.vm.skeleton.repository.UserRepository;
 
 /**
  * Verifies {@code @Retryable} on the Spring proxy: transient DB errors are retried, unknown users are not.
@@ -39,32 +38,27 @@ class UserDetailServiceImplRetryTest {
     }
 
     @MockitoBean
-    private UserDetailRepository userDetailRepository;
+    private UserRepository userRepository;
 
     @Autowired
     private UserDetailsService userDetailsService;
 
     @Test
     void unknownUser_isNotRetried() {
-        when(userDetailRepository.findByUserName("unknown")).thenReturn(Optional.empty());
+        when(userRepository.findByUserName("unknown")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("unknown"));
-        verify(userDetailRepository, times(1)).findByUserName("unknown");
+        verify(userRepository, times(1)).findByUserName("unknown");
     }
 
     @Test
     void transientDatabaseError_isRetried() {
-        User user = new User();
-        user.setUserName("alice");
-        user.setHashedPassword("hashed");
-        Role role = new Role();
-        role.setRoleCode("EDITOR");
-        user.setRoles(List.of(role));
-        when(userDetailRepository.findByUserName("alice"))
+        User user = new User("alice", "hashed").addRole(new Role("EDITOR"));
+        when(userRepository.findByUserName("alice"))
                 .thenThrow(new QueryTimeoutException("timeout"))
                 .thenReturn(Optional.of(user));
 
         assertEquals("alice", userDetailsService.loadUserByUsername("alice").getUsername());
-        verify(userDetailRepository, times(2)).findByUserName("alice");
+        verify(userRepository, times(2)).findByUserName("alice");
     }
 }

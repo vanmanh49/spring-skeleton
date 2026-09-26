@@ -1,5 +1,6 @@
 package com.vm.skeleton.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -10,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import com.vm.skeleton.entity.User;
 
 class AuthenticationIntegrationTest extends AbstractIntegrationTest {
 
@@ -19,11 +23,10 @@ class AuthenticationIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginJson(ADMIN, PASSWORD)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.userName").value(ADMIN))
-                .andExpect(jsonPath("$.data.roles", containsInAnyOrder("ADMINISTRATOR")))
-                .andExpect(jsonPath("$.data.jwt").isNotEmpty())
-                .andExpect(jsonPath("$.data.expiresAt").isNotEmpty());
+                .andExpect(jsonPath("$.userName").value(ADMIN))
+                .andExpect(jsonPath("$.roles", containsInAnyOrder("ADMINISTRATOR")))
+                .andExpect(jsonPath("$.jwt").isNotEmpty())
+                .andExpect(jsonPath("$.expiresAt").isNotEmpty());
     }
 
     @Test
@@ -87,5 +90,18 @@ class AuthenticationIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("ERR_03"));
+    }
+
+    @Test
+    void login_withLegacyUnprefixedBcryptHash_succeedsAndUpgradesHash() throws Exception {
+        userRepository.save(new User("legacyuser", new BCryptPasswordEncoder().encode(PASSWORD)));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson("legacyuser", PASSWORD)))
+                .andExpect(status().isOk());
+
+        assertThat(userRepository.findByUserName("legacyuser").orElseThrow().getHashedPassword())
+                .startsWith("{bcrypt}");
     }
 }

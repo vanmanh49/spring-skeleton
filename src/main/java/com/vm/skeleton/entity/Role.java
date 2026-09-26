@@ -1,36 +1,47 @@
 package com.vm.skeleton.entity;
 
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
+/**
+ * Role reference data (seeded by Flyway). Identified by its unique {@code code}, which is also the authority name.
+ */
 @Entity
 @Table(name = "roles")
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "role_code", nullable = false, length = 50)
-    private String roleCode;
+    @Column(name = "code", nullable = false, unique = true, length = 50)
+    private String code;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    public Role(String code) {
+        this.code = code;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+        return this == o || (o instanceof Role other && Objects.equals(code, other.code));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(code);
+    }
 }
